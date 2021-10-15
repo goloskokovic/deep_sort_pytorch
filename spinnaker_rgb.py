@@ -1,26 +1,3 @@
-# ============================================================================
-# Copyright (c) 2001-2021 FLIR Systems, Inc. All Rights Reserved.
-
-# This software is the confidential and proprietary information of FLIR
-# Integrated Imaging Solutions, Inc. ("Confidential Information"). You
-# shall not disclose such Confidential Information and shall use it only in
-# accordance with the terms of the license agreement you entered into
-# with FLIR Integrated Imaging Solutions, Inc. (FLIR).
-#
-# FLIR MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF THE
-# SOFTWARE, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-# PURPOSE, OR NON-INFRINGEMENT. FLIR SHALL NOT BE LIABLE FOR ANY DAMAGES
-# SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
-# THIS SOFTWARE OR ITS DERIVATIVES.
-# ============================================================================
-#
-# AcquisitionMultipleCamera.py shows how to capture images from
-# multiple cameras simultaneously. It relies on information provided in the
-# Enumeration, Acquisition, and NodeMapInfo examples.
-#
-# This example reads similarly to the Acquisition example,
-# except that loops are used to allow for simultaneous acquisitions.
 import argparse
 import time
 from pathlib import Path
@@ -40,9 +17,61 @@ from utils.general import check_img_size, check_requirements, check_imshow, non_
 from utils.plots import colors, plot_one_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized
 
+from detector import build_detector
+from deep_sort import build_tracker
+from utils.draw import draw_boxes
+from utils.parser import get_config
+from utils.log import get_logger
+from utils.io import write_results
+
+
 
 @torch.no_grad()
-def detect(options, stride, model, device, names, img0):
+def detect(options, stride, model, device, names, img0, cfg):
+    
+    # should be moved out!
+    detector = build_detector(cfg, use_cuda=use_cuda)
+    deepsort = build_tracker(cfg, use_cuda=use_cuda)
+    class_names = detector.class_names
+    
+    start = time.time()
+    im = cv2.cvtColor(img0, cv2.COLOR_BGR2RGB)
+    
+    # do detection
+    bbox_xywh, cls_conf, cls_ids = detector(img)
+    # select person class
+    mask = cls_ids == 0
+    bbox_xywh = bbox_xywh[mask]
+    # bbox dilation just in case bbox too small, delete this line if using a better pedestrian detector
+    bbox_xywh[:, 3:] *= 1.2
+    cls_conf = cls_conf[mask]
+    # do tracking
+    outputs = deepsort.update(bbox_xywh, cls_conf, im)
+    
+    # draw boxes for visualization
+    if len(outputs) > 0:
+        bbox_tlwh = []
+        bbox_xyxy = outputs[:, :4]
+        identities = outputs[:, -1]
+        ori_im = draw_boxes(ori_im, bbox_xyxy, identities)
+        
+        for bb_xyxy in bbox_xyxy:
+            bbox_tlwh.append(self.deepsort._xyxy_to_tlwh(bb_xyxy))
+        
+        results.append((idx_frame - 1, bbox_tlwh, identities))
+
+    end = time.time()
+    cv2.imshow("test", ori_im)
+    cv2.waitKey(1)
+    
+    # logging
+    self.logger.info("time: {:.03f}s, fps: {:.03f}, detection numbers: {}, tracking numbers: {}" \
+        .format(end - start, 1 / (end - start), bbox_xywh.shape[0], len(outputs)))
+    
+    # end tracking
+    return
+    
+    
     half = device.type != 'cpu'
     imgsz = check_img_size(options.img_size, s=stride)  # check img_size
     # Padded resize
@@ -57,6 +86,7 @@ def detect(options, stride, model, device, names, img0):
     img /= 255.0  # 0 - 255 to 0.0 - 1.0
     if img.ndimension() == 3:
         img = img.unsqueeze(0)
+    
     # Inference
     pred = model(img, augment=options.augment)[0]
 

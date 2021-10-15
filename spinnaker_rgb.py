@@ -35,7 +35,7 @@ def detect(options, stride, model, device, names, img0, cfg):
     class_names = detector.class_names
     
     start = time.time()
-    im = cv2.cvtColor(img0, cv2.COLOR_BGR2RGB)
+    img = cv2.cvtColor(img0, cv2.COLOR_BGR2RGB)
     
     # do detection
     bbox_xywh, cls_conf, cls_ids = detector(img)

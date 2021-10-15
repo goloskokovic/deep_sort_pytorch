@@ -46,7 +46,7 @@ def detect(options, stride, model, device, names, img0, cfg):
     bbox_xywh[:, 3:] *= 1.2
     cls_conf = cls_conf[mask]
     # do tracking
-    outputs = deepsort.update(bbox_xywh, cls_conf, im)
+    outputs = deepsort.update(bbox_xywh, cls_conf, img)
     
     # draw boxes for visualization
     if len(outputs) > 0:

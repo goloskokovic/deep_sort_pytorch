@@ -27,12 +27,7 @@ from utils.io import write_results
 
 
 @torch.no_grad()
-def detect(options, stride, model, device, names, img0, cfg):
-    
-    # should be moved out!
-    detector = build_detector(cfg, use_cuda=use_cuda)
-    deepsort = build_tracker(cfg, use_cuda=use_cuda)
-    class_names = detector.class_names
+def detect(detector, deepsort, class_names, img0):
     
     start = time.time()
     img = cv2.cvtColor(img0, cv2.COLOR_BGR2RGB)
@@ -65,65 +60,66 @@ def detect(options, stride, model, device, names, img0, cfg):
     cv2.waitKey(1)
     
     # logging
-    self.logger.info("time: {:.03f}s, fps: {:.03f}, detection numbers: {}, tracking numbers: {}" \
-        .format(end - start, 1 / (end - start), bbox_xywh.shape[0], len(outputs)))
+    #logger = get_logger("root")
+    #logger.info("time: {:.03f}s, fps: {:.03f}, detection numbers: {}, tracking numbers: {}" \
+    #    .format(end - start, 1 / (end - start), bbox_xywh.shape[0], len(outputs)))
     
     # end tracking
-    return
     
     
-    half = device.type != 'cpu'
-    imgsz = check_img_size(options.img_size, s=stride)  # check img_size
+    
+    #half = device.type != 'cpu'
+    #imgsz = check_img_size(options.img_size, s=stride)  # check img_size
     # Padded resize
-    img = letterbox(img0, imgsz, stride=stride)[0]
+    #img = letterbox(img0, imgsz, stride=stride)[0]
     # Convert
-    img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
-    img = np.ascontiguousarray(img)
+    #img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+    #img = np.ascontiguousarray(img)
 
     # img = transforms.ToTensor()(np.array(img)).to(device)
-    img = torch.from_numpy(np.array(img)).to(device)
-    img = img.half() if half else img.float()  # uint8 to fp16/32
-    img /= 255.0  # 0 - 255 to 0.0 - 1.0
-    if img.ndimension() == 3:
-        img = img.unsqueeze(0)
+    #img = torch.from_numpy(np.array(img)).to(device)
+    #img = img.half() if half else img.float()  # uint8 to fp16/32
+    #img /= 255.0  # 0 - 255 to 0.0 - 1.0
+    #if img.ndimension() == 3:
+    #    img = img.unsqueeze(0)
     
     # Inference
-    pred = model(img, augment=options.augment)[0]
+    #pred = model(img, augment=options.augment)[0]
 
     # Apply NMS
-    pred = non_max_suppression(pred, options.conf_thres, options.iou_thres, options.classes, options.agnostic_nms,
-                               max_det=options.max_det)
+    #pred = non_max_suppression(pred, options.conf_thres, options.iou_thres, options.classes, options.agnostic_nms,
+    #                           max_det=options.max_det)
 
     # Process detections
-    for i, det in enumerate(pred):  # detections per image
-        s = ''
-        s += '%gx%g ' % img.shape[2:]  # print string
-        if len(det):
+    #for i, det in enumerate(pred):  # detections per image
+    #    s = ''
+    #    s += '%gx%g ' % img.shape[2:]  # print string
+    #    if len(det):
             # Rescale boxes from img_size to im0 size
-            det[:, :4] = scale_coords(img.shape[2:], det[:, :4], img0.shape).round()
+    #        det[:, :4] = scale_coords(img.shape[2:], det[:, :4], img0.shape).round()
 
             # Print results
-            for c in det[:, -1].unique():
-                n = (det[:, -1] == c).sum()  # detections per class
-                s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
+   #         for c in det[:, -1].unique():
+   #             n = (det[:, -1] == c).sum()  # detections per class
+   #             s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
             # Write results
-            for *xyxy, conf, cls in reversed(det):
-                c = int(cls)  # integer class
-                if c == 0:
-                    label = None if options.hide_labels else (
-                        names[c] if options.hide_conf else f'{names[c]} {conf:.2f}')
-                    label = 'Person'
-                    plot_one_box(xyxy, img0, label=label, color=colors(c, True), line_thickness=options.line_thickness)
+   #         for *xyxy, conf, cls in reversed(det):
+   #             c = int(cls)  # integer class
+   #             if c == 0:
+   #                 label = None if options.hide_labels else (
+   #                     names[c] if options.hide_conf else f'{names[c]} {conf:.2f}')
+   #                 label = 'Person'
+   #                 plot_one_box(xyxy, img0, label=label, color=colors(c, True), line_thickness=options.line_thickness)
 
-        cv2.imshow('Front Center camera', img0)
-        k = cv2.waitKey(1)
-        if k == ord('q'):
-            cv2.destroyAllWindows()
-            exit()
+   #     cv2.imshow('Front Center camera', img0)
+   #     k = cv2.waitKey(1)
+   #     if k == ord('q'):
+   #         cv2.destroyAllWindows()
+   #         exit()
 
 
-def acquire_images(cam_list, master_camera_sn, options, stride, model, device, names, cfg):
+def acquire_images(cam_list, master_camera_sn, detector, deepsort, class_names):
     """
     This function acquires and saves 10 images from each device.
 
@@ -195,7 +191,7 @@ def acquire_images(cam_list, master_camera_sn, options, stride, model, device, n
                             image_converted = image_result.Convert(PySpin.PixelFormat_BGR8)
                             im_cv2_format = image_converted.GetData().reshape(height, width, 3)
                             # start = time.time()
-                            detect(options, stride, model, device, names, im_cv2_format, cfg)
+                            detect(detector, deepsort, class_names, im_cv2_format)
                             # end = time.time()
                             # print("Inference time: ", str((end-start)*1000))
 
@@ -213,7 +209,7 @@ def acquire_images(cam_list, master_camera_sn, options, stride, model, device, n
     return result
 
 
-def run_master_camera(cam_list, master_camera_sn, options, stride, model, device, names, cfg):
+def run_master_camera(cam_list, master_camera_sn, detector, deepsort, class_names):
     """
     This function acts as the body of the example; please see NodeMapInfo example
     for more in-depth comments on setting up cameras.
@@ -246,7 +242,7 @@ def run_master_camera(cam_list, master_camera_sn, options, stride, model, device
             cam.Init()
 
         # Acquire images on all cameras
-        result &= acquire_images(cam_list, master_camera_sn, options, stride, model, device, names, cfg)
+        result &= acquire_images(cam_list, master_camera_sn, detector, deepsort, class_names)
 
         # Deinitialize each camera
         #
@@ -327,21 +323,25 @@ def main():
         cfg.USE_FASTREID = True
     else:
         cfg.USE_FASTREID = False
+    
+    detector = build_detector(cfg, use_cuda=use_cuda)
+    deepsort = build_tracker(cfg, use_cuda=use_cuda)
+    class_names = detector.class_names
 
-    weights, imgsz = opt.weights, opt.img_size
+    #weights, imgsz = opt.weights, opt.img_size
 
     # Initialize
-    set_logging()
-    device = select_device(opt.device)
-    half = device.type != 'cpu'  # half precision only supported on CUDA
+    #set_logging()
+    #device = select_device(opt.device)
+    #half = device.type != 'cpu'  # half precision only supported on CUDA
 
     # Load model
-    model = attempt_load(weights, map_location=device)  # load FP32 model
-    stride = int(model.stride.max())  # model stride
-    names = model.module.names if hasattr(model, 'module') else model.names  # get class names
+    #model = attempt_load(weights, map_location=device)  # load FP32 model
+    #stride = int(model.stride.max())  # model stride
+    #names = model.module.names if hasattr(model, 'module') else model.names  # get class names
 
-    if half:
-        model.half()  # to FP16
+    #if half:
+    #    model.half()  # to FP16
 
     # Retrieve singleton reference to system object
     system = PySpin.System.GetInstance()
@@ -370,7 +370,7 @@ def main():
         input('Done! Press Enter to exit...')
         return False
 
-    result = run_master_camera(cam_list, master_camera_serial_number, opt, stride, model, device, names, cfg)
+    result = run_master_camera(cam_list, master_camera_serial_number, detector, deepsort, class_names)
 
     print('Example complete... \n')
 

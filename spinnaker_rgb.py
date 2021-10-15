@@ -123,7 +123,7 @@ def detect(options, stride, model, device, names, img0, cfg):
             exit()
 
 
-def acquire_images(cam_list, master_camera_sn, options, stride, model, device, names):
+def acquire_images(cam_list, master_camera_sn, options, stride, model, device, names, cfg):
     """
     This function acquires and saves 10 images from each device.
 
@@ -195,7 +195,7 @@ def acquire_images(cam_list, master_camera_sn, options, stride, model, device, n
                             image_converted = image_result.Convert(PySpin.PixelFormat_BGR8)
                             im_cv2_format = image_converted.GetData().reshape(height, width, 3)
                             # start = time.time()
-                            detect(options, stride, model, device, names, im_cv2_format)
+                            detect(options, stride, model, device, names, im_cv2_format, cfg)
                             # end = time.time()
                             # print("Inference time: ", str((end-start)*1000))
 
@@ -213,7 +213,7 @@ def acquire_images(cam_list, master_camera_sn, options, stride, model, device, n
     return result
 
 
-def run_master_camera(cam_list, master_camera_sn, options, stride, model, device, names):
+def run_master_camera(cam_list, master_camera_sn, options, stride, model, device, names, cfg):
     """
     This function acts as the body of the example; please see NodeMapInfo example
     for more in-depth comments on setting up cameras.
@@ -246,7 +246,7 @@ def run_master_camera(cam_list, master_camera_sn, options, stride, model, device
             cam.Init()
 
         # Acquire images on all cameras
-        result &= acquire_images(cam_list, master_camera_sn, options, stride, model, device, names)
+        result &= acquire_images(cam_list, master_camera_sn, options, stride, model, device, names, cfg)
 
         # Deinitialize each camera
         #
@@ -294,8 +294,39 @@ def main():
     parser.add_argument('--line-thickness', default=2, type=int, help='bounding box thickness (pixels)')
     parser.add_argument('--hide-labels', default=False, action='store_true', help='hide labels')
     parser.add_argument('--hide-conf', default=False, action='store_true', help='hide confidences')
+    
+    # deep sort arguments
+    parser.add_argument("VIDEO_PATH", type=str)
+    parser.add_argument("--config_mmdetection", type=str, default="./configs/mmdet.yaml")
+    parser.add_argument("--config_detection", type=str, default="./configs/yolov3.yaml")
+    parser.add_argument("--config_deepsort", type=str, default="./configs/deep_sort.yaml")
+    parser.add_argument("--config_fastreid", type=str, default="./configs/fastreid.yaml")
+    parser.add_argument("--fastreid", action="store_true")
+    parser.add_argument("--mmdet", action="store_true")
+    # parser.add_argument("--ignore_display", dest="display", action="store_false", default=True)
+    parser.add_argument("--display", action="store_true")
+    parser.add_argument("--frame_interval", type=int, default=1)
+    parser.add_argument("--display_width", type=int, default=800)
+    parser.add_argument("--display_height", type=int, default=600)
+    parser.add_argument("--save_path", type=str, default="./output/")
+    parser.add_argument("--cpu", dest="use_cuda", action="store_false", default=True)
+    parser.add_argument("--camera", action="store", dest="cam", type=int, default="-1")
     opt = parser.parse_args()
     result = True
+    
+    cfg = get_config()
+    if opt.mmdet:
+        cfg.merge_from_file(opt.config_mmdetection)
+        cfg.USE_MMDET = True
+    else:
+        cfg.merge_from_file(opt.config_detection)
+        cfg.USE_MMDET = False
+    cfg.merge_from_file(opt.config_deepsort)
+    if args.fastreid:
+        cfg.merge_from_file(opt.config_fastreid)
+        cfg.USE_FASTREID = True
+    else:
+        cfg.USE_FASTREID = False
 
     weights, imgsz = opt.weights, opt.img_size
 
@@ -339,7 +370,7 @@ def main():
         input('Done! Press Enter to exit...')
         return False
 
-    result = run_master_camera(cam_list, master_camera_serial_number, opt, stride, model, device, names)
+    result = run_master_camera(cam_list, master_camera_serial_number, opt, stride, model, device, names, cfg)
 
     print('Example complete... \n')
 

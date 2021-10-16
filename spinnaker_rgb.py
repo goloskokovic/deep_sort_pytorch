@@ -1,21 +1,9 @@
 import argparse
 import time
-from pathlib import Path
-import os
 import PySpin
 import sys
 import cv2
-import numpy as np
-
 import torch
-import torch.backends.cudnn as cudnn
-
-from models.experimental import attempt_load
-from utils.datasets import LoadStreams, LoadImages, letterbox
-from utils.general import check_img_size, check_requirements, check_imshow, non_max_suppression, apply_classifier, \
-    scale_coords, xyxy2xywh, strip_optimizer, set_logging, increment_path, save_one_box
-from utils.plots import colors, plot_one_box
-from utils.torch_utils import select_device, load_classifier, time_synchronized
 
 from detector import build_detector
 from deep_sort import build_tracker
@@ -24,10 +12,10 @@ from utils.parser import get_config
 from utils.log import get_logger
 from utils.io import write_results
 
-
+logger = get_logger("root")
 
 @torch.no_grad()
-def detect(detector, deepsort, class_names, img0):
+def detect(detector, deepsort, img0):
     
     start = time.time()
     img = cv2.cvtColor(img0, cv2.COLOR_BGR2RGB)
@@ -48,78 +36,29 @@ def detect(detector, deepsort, class_names, img0):
         bbox_tlwh = []
         bbox_xyxy = outputs[:, :4]
         identities = outputs[:, -1]
-        ori_im = draw_boxes(ori_im, bbox_xyxy, identities)
+        ori_im = draw_boxes(img0, bbox_xyxy, identities)
         
-        for bb_xyxy in bbox_xyxy:
-            bbox_tlwh.append(self.deepsort._xyxy_to_tlwh(bb_xyxy))
+        #for bb_xyxy in bbox_xyxy:
+        #    bbox_tlwh.append(deepsort._xyxy_to_tlwh(bb_xyxy))
         
-        results.append((idx_frame - 1, bbox_tlwh, identities))
+        # results.append((idx_frame - 1, bbox_tlwh, identities))
+
+
 
     end = time.time()
     cv2.imshow("test", ori_im)
     cv2.waitKey(1)
-    
+
+    # save results
+    #write_results(self.save_results_path, results, 'mot')
+
     # logging
-    #logger = get_logger("root")
-    #logger.info("time: {:.03f}s, fps: {:.03f}, detection numbers: {}, tracking numbers: {}" \
-    #    .format(end - start, 1 / (end - start), bbox_xywh.shape[0], len(outputs)))
+    logger.info("time: {:.03f}s, fps: {:.03f}, detection numbers: {}, tracking numbers: {}" \
+        .format(end - start, 1 / (end - start), bbox_xywh.shape[0], len(outputs)))
     
-    # end tracking
-    
-    
-    
-    #half = device.type != 'cpu'
-    #imgsz = check_img_size(options.img_size, s=stride)  # check img_size
-    # Padded resize
-    #img = letterbox(img0, imgsz, stride=stride)[0]
-    # Convert
-    #img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
-    #img = np.ascontiguousarray(img)
-
-    # img = transforms.ToTensor()(np.array(img)).to(device)
-    #img = torch.from_numpy(np.array(img)).to(device)
-    #img = img.half() if half else img.float()  # uint8 to fp16/32
-    #img /= 255.0  # 0 - 255 to 0.0 - 1.0
-    #if img.ndimension() == 3:
-    #    img = img.unsqueeze(0)
-    
-    # Inference
-    #pred = model(img, augment=options.augment)[0]
-
-    # Apply NMS
-    #pred = non_max_suppression(pred, options.conf_thres, options.iou_thres, options.classes, options.agnostic_nms,
-    #                           max_det=options.max_det)
-
-    # Process detections
-    #for i, det in enumerate(pred):  # detections per image
-    #    s = ''
-    #    s += '%gx%g ' % img.shape[2:]  # print string
-    #    if len(det):
-            # Rescale boxes from img_size to im0 size
-    #        det[:, :4] = scale_coords(img.shape[2:], det[:, :4], img0.shape).round()
-
-            # Print results
-   #         for c in det[:, -1].unique():
-   #             n = (det[:, -1] == c).sum()  # detections per class
-   #             s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
-
-            # Write results
-   #         for *xyxy, conf, cls in reversed(det):
-   #             c = int(cls)  # integer class
-   #             if c == 0:
-   #                 label = None if options.hide_labels else (
-   #                     names[c] if options.hide_conf else f'{names[c]} {conf:.2f}')
-   #                 label = 'Person'
-   #                 plot_one_box(xyxy, img0, label=label, color=colors(c, True), line_thickness=options.line_thickness)
-
-   #     cv2.imshow('Front Center camera', img0)
-   #     k = cv2.waitKey(1)
-   #     if k == ord('q'):
-   #         cv2.destroyAllWindows()
-   #         exit()
 
 
-def acquire_images(cam_list, master_camera_sn, detector, deepsort, class_names):
+def acquire_images(cam_list, master_camera_sn, detector, deepsort):
     """
     This function acquires and saves 10 images from each device.
 
@@ -191,7 +130,7 @@ def acquire_images(cam_list, master_camera_sn, detector, deepsort, class_names):
                             image_converted = image_result.Convert(PySpin.PixelFormat_BGR8)
                             im_cv2_format = image_converted.GetData().reshape(height, width, 3)
                             # start = time.time()
-                            detect(detector, deepsort, class_names, im_cv2_format)
+                            detect(detector, deepsort, im_cv2_format)
                             # end = time.time()
                             # print("Inference time: ", str((end-start)*1000))
 
@@ -209,7 +148,7 @@ def acquire_images(cam_list, master_camera_sn, detector, deepsort, class_names):
     return result
 
 
-def run_master_camera(cam_list, master_camera_sn, detector, deepsort, class_names):
+def run_master_camera(cam_list, master_camera_sn, detector, deepsort):
     """
     This function acts as the body of the example; please see NodeMapInfo example
     for more in-depth comments on setting up cameras.
@@ -242,7 +181,7 @@ def run_master_camera(cam_list, master_camera_sn, detector, deepsort, class_name
             cam.Init()
 
         # Acquire images on all cameras
-        result &= acquire_images(cam_list, master_camera_sn, detector, deepsort, class_names)
+        result &= acquire_images(cam_list, master_camera_sn, detector, deepsort)
 
         # Deinitialize each camera
         #
@@ -291,7 +230,7 @@ def main():
     parser.add_argument('--hide-labels', default=False, action='store_true', help='hide labels')
     parser.add_argument('--hide-conf', default=False, action='store_true', help='hide confidences')
     
-    # deep sort arguments
+    # deepsort arguments
     parser.add_argument("VIDEO_PATH", type=str)
     parser.add_argument("--config_mmdetection", type=str, default="./configs/mmdet.yaml")
     parser.add_argument("--config_detection", type=str, default="./configs/yolov3.yaml")
@@ -318,30 +257,17 @@ def main():
         cfg.merge_from_file(opt.config_detection)
         cfg.USE_MMDET = False
     cfg.merge_from_file(opt.config_deepsort)
-    if args.fastreid:
+    if opt.fastreid:
         cfg.merge_from_file(opt.config_fastreid)
         cfg.USE_FASTREID = True
     else:
         cfg.USE_FASTREID = False
-    
+
+    use_cuda = torch.cuda.is_available()
+
     detector = build_detector(cfg, use_cuda=use_cuda)
     deepsort = build_tracker(cfg, use_cuda=use_cuda)
     class_names = detector.class_names
-
-    #weights, imgsz = opt.weights, opt.img_size
-
-    # Initialize
-    #set_logging()
-    #device = select_device(opt.device)
-    #half = device.type != 'cpu'  # half precision only supported on CUDA
-
-    # Load model
-    #model = attempt_load(weights, map_location=device)  # load FP32 model
-    #stride = int(model.stride.max())  # model stride
-    #names = model.module.names if hasattr(model, 'module') else model.names  # get class names
-
-    #if half:
-    #    model.half()  # to FP16
 
     # Retrieve singleton reference to system object
     system = PySpin.System.GetInstance()
@@ -370,7 +296,7 @@ def main():
         input('Done! Press Enter to exit...')
         return False
 
-    result = run_master_camera(cam_list, master_camera_serial_number, detector, deepsort, class_names)
+    result = run_master_camera(cam_list, master_camera_serial_number, detector, deepsort)
 
     print('Example complete... \n')
 

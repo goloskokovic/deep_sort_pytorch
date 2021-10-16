@@ -36,7 +36,7 @@ dependencies:
       - importlib-metadata==1.6.0
       - jdcal==1.4.1
       - joblib==0.14.1
-      - numpy==1.18.2
+      - numpy==1.21.2
       - lap==0.4.0
       - mccabe==0.6.1
       - more-itertools==8.2.0

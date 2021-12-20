@@ -5,6 +5,8 @@ import sys
 import cv2
 import torch
 
+sys.path.append(os.path.join(os.path.dirname(__file__)
+
 from detector import build_detector
 from deep_sort import build_tracker
 from utils.draw import draw_boxes
@@ -36,7 +38,7 @@ def detect(detector, deepsort, img0):
         bbox_tlwh = []
         bbox_xyxy = outputs[:, :4]
         identities = outputs[:, -1]
-        ori_im = draw_boxes(img0, bbox_xyxy, identities)
+        img0 = draw_boxes(img0, bbox_xyxy, identities)
         
         #for bb_xyxy in bbox_xyxy:
         #    bbox_tlwh.append(deepsort._xyxy_to_tlwh(bb_xyxy))
@@ -46,7 +48,7 @@ def detect(detector, deepsort, img0):
 
 
     end = time.time()
-    cv2.imshow("test", ori_im)
+    cv2.imshow("test", img0)
     cv2.waitKey(1)
 
     # save results
@@ -207,45 +209,13 @@ def run_master_camera(cam_list, master_camera_sn, detector, deepsort):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default='yolov3.pt', help='model.pt path(s)')
-    parser.add_argument('--source', type=str, default='data/images', help='source')  # file/folder, 0 for webcam
-    parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
-    parser.add_argument('--conf-thres', type=float, default=0.20, help='object confidence threshold')
-    parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
-    parser.add_argument('--max-det', type=int, default=1000, help='maximum number of detections per image')
-    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    parser.add_argument('--view-img', action='store_true', help='display results')
-    parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
-    parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
-    parser.add_argument('--save-crop', action='store_true', help='save cropped prediction boxes')
-    parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
-    parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --class 0, or --class 0 2 3')
-    parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
-    parser.add_argument('--augment', action='store_true', help='augmented inference')
-    parser.add_argument('--update', action='store_true', help='update all models')
-    parser.add_argument('--project', default='runs/detect', help='save results to project/name')
-    parser.add_argument('--name', default='exp', help='save results to project/name')
-    parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
-    parser.add_argument('--line-thickness', default=2, type=int, help='bounding box thickness (pixels)')
-    parser.add_argument('--hide-labels', default=False, action='store_true', help='hide labels')
-    parser.add_argument('--hide-conf', default=False, action='store_true', help='hide confidences')
-    
-    # deepsort arguments
-    parser.add_argument("VIDEO_PATH", type=str)
     parser.add_argument("--config_mmdetection", type=str, default="./configs/mmdet.yaml")
     parser.add_argument("--config_detection", type=str, default="./configs/yolov3.yaml")
     parser.add_argument("--config_deepsort", type=str, default="./configs/deep_sort.yaml")
     parser.add_argument("--config_fastreid", type=str, default="./configs/fastreid.yaml")
     parser.add_argument("--fastreid", action="store_true")
     parser.add_argument("--mmdet", action="store_true")
-    # parser.add_argument("--ignore_display", dest="display", action="store_false", default=True)
-    parser.add_argument("--display", action="store_true")
-    parser.add_argument("--frame_interval", type=int, default=1)
-    parser.add_argument("--display_width", type=int, default=800)
-    parser.add_argument("--display_height", type=int, default=600)
-    parser.add_argument("--save_path", type=str, default="./output/")
-    parser.add_argument("--cpu", dest="use_cuda", action="store_false", default=True)
-    parser.add_argument("--camera", action="store", dest="cam", type=int, default="-1")
+
     opt = parser.parse_args()
     result = True
     

@@ -5,7 +5,7 @@ import sys
 import cv2
 import torch
 
-sys.path.append(os.path.join(os.path.dirname(__file__)
+sys.path.append(os.path.join(os.path.dirname(__file__), 'thirdparty/fast-reid'))
 
 from detector import build_detector
 from deep_sort import build_tracker
